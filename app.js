@@ -3,6 +3,8 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const connectDB = require("./app/config/dbcon");
 const authRoutes = require("./app/routes/authroutes");
+const campaignRoutes = require("./app/routes/campaignroutes");
+const categoryRoutes = require("./app/routes/categoryroutes");
 
 dotenv.config();
 connectDB();
@@ -15,6 +17,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static("uploads"));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/campaign", campaignRoutes);
+app.use("/api/categories", categoryRoutes);
 
 app.listen(process.env.PORT, () => {
   console.log("Server running on port " + process.env.PORT);
