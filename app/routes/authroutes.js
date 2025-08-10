@@ -20,6 +20,8 @@
 const express = require("express");
 const router = express.Router();
 const upload = require("../middleware/upload");
+
+
 const {
   register,
   verifyOtp,
@@ -28,7 +30,8 @@ const {
   forgotPassword,
   resetPassword,
   updateRegisterInfo,
-  getAllRegisterProfiles
+  getAllRegisterProfiles,
+  logout
 } = require("../controller/authcontroller");
 
 /**
@@ -209,5 +212,9 @@ router.post("/reset-password", resetPassword);
  *         description: User updated
  */
 router.put("/update/:id", upload.single("image"), updateRegisterInfo);
+// Logout route
+
+router.get('/logout',logout);
+
 
 module.exports = router;

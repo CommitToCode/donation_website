@@ -44,3 +44,12 @@ exports.createDonationLink = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.listPayments = async (req, res) => {
+  try {
+    const payments = await Payment.find().sort({ createdAt: -1 });
+    res.render("payments", { payments });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server Error");
+  }
+};

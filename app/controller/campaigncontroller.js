@@ -4,8 +4,17 @@ const Campaign = require("../models/campaignmodel");
 exports.createCampaign = async (req, res) => {
   try {
     const image = req.file?.filename;
-    const { title, description, goalAmount, category, creatorId, role } = req.body;
+    const { title, description, goalAmount, category } = req.body;
 
+  
+    const creatorId = req.session.user?.id;
+    const role = req.session.user?.role;
+
+    if (!creatorId) {
+      return res.status(401).send("Unauthorized: Please log in to create campaigns");
+    }
+
+    
     const status = role === "admin" ? "approved" : "pending";
 
     const newCampaign = new Campaign({
@@ -15,16 +24,16 @@ exports.createCampaign = async (req, res) => {
       category,
       creatorId,
       image,
-      status
+      status,
     });
 
     await newCampaign.save();
-    res.status(201).json({ message: `Campaign ${status === 'approved' ? 'created and approved' : 'submitted for approval'}`, campaign: newCampaign });
+
+    res.redirect("/campaigns");
   } catch (error) {
-    res.status(500).json({ message: "Campaign creation failed", error: error.message });
+    res.status(500).send("Campaign creation failed: " + error.message);
   }
 };
-
 
 exports.getAllCampaigns = async (req, res) => {
   try {
@@ -39,7 +48,6 @@ exports.getAllCampaigns = async (req, res) => {
   }
 };
 
-
 exports.getCampaignById = async (req, res) => {
   try {
     const campaign = await Campaign.findById(req.params.id).populate("creatorId", "name email");
@@ -50,24 +58,30 @@ exports.getCampaignById = async (req, res) => {
   }
 };
 
-exports.updateCampaign = async (req, res) => {
- try {
-    const { id } = req.params;
-    const { status } = req.body;
 
-    if (!["approved", "rejected"].includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
+exports.updateCampaign = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const campaign = await Campaign.findById(id);
+    if (!campaign) return res.status(404).send("Campaign not found");
+
+    const { title, description, goalAmount, category, status } = req.body;
+    if (title) campaign.title = title;
+    if (description) campaign.description = description;
+    if (goalAmount) campaign.goalAmount = goalAmount;
+    if (category) campaign.category = category;
+    if (status && ["pending", "approved", "rejected"].includes(status)) campaign.status = status;
+
+    if (req.file?.filename) {
+      campaign.image = req.file.filename;
     }
 
-    const campaign = await Campaign.findById(id);
-    if (!campaign) return res.status(404).json({ message: "Campaign not found" });
-
-    campaign.status = status;
     await campaign.save();
 
-    res.json({ message: `Campaign ${status}`, campaign });
+    
+    res.redirect("/campaigns");
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).send(error.message);
   }
 };
 
@@ -76,7 +90,12 @@ exports.deleteCampaign = async (req, res) => {
   try {
     const campaign = await Campaign.findByIdAndDelete(req.params.id);
     if (!campaign) return res.status(404).json({ message: "Campaign not found" });
-    res.json({ message: "Campaign deleted" });
+
+    // For API, send JSON:
+    // res.json({ message: "Campaign deleted" });
+
+    
+    res.redirect("/campaigns");
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

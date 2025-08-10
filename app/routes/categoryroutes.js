@@ -1,7 +1,3 @@
-// 
-
-
-
 const express = require("express");
 const router = express.Router();
 const categoryController = require("../controller/categorycontroller");
@@ -43,5 +39,46 @@ router.post("/create", categoryController.createCategory);
  *         description: List of categories
  */
 router.get("/", categoryController.getAllCategories);
+
+/**
+ * @swagger
+ * /categories/{id}:
+ *   put:
+ *     tags: [Categories]
+ *     summary: Update a category by ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             properties:
+ *               name: { type: string }
+ *               slug: { type: string }
+ *     responses:
+ *       200:
+ *         description: Category updated
+ */
+router.put("/:id", categoryController.updateCategory);
+
+/**
+ * @swagger
+ * /categories/{id}:
+ *   delete:
+ *     tags: [Categories]
+ *     summary: Delete a category by ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Category deleted
+ */
+router.delete("/:id", categoryController.deleteCategory);
 
 module.exports = router;

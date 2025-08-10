@@ -3,7 +3,7 @@
 
 const express = require("express");
 const router = express.Router();
-const { createDonationLink } = require("../controller/donationcontroller");
+const { createDonationLink ,listPayments} = require("../controller/donationcontroller");
 
 /**
  * @swagger
@@ -33,5 +33,6 @@ const { createDonationLink } = require("../controller/donationcontroller");
  *         description: Payment link created and emailed
  */
 router.post("/create-donation", createDonationLink);
+router.get("/payments", listPayments);
 
 module.exports = router;

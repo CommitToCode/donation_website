@@ -2,67 +2,65 @@ const User = require("../models/authmodel");
 const bcrypt = require("bcrypt");
 const sendEmail = require("../middleware/emailsetup");
 
-
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+
 
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
     const image = req.file?.filename;
 
-  
     const allowedRoles = ["donor", "admin"];
     if (!allowedRoles.includes(role)) {
-      return res.status(400).json({ message: "Invalid role selected" });
+      return res.render("register", { error: "Invalid role selected", success: null });
     }
 
-    
     const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: "User already exists" });
+    if (existing) return res.render("register", { error: "User already exists", success: null });
 
     const hashed = await bcrypt.hash(password, 10);
     const otp = generateOtp();
 
-    const newUser = await User.create({
+    await User.create({
       name,
       email,
       password: hashed,
       image,
       otp,
-      otpExpiresAt: new Date(Date.now() + 60 * 1000), 
-
+      otpExpiresAt: new Date(Date.now() + 60 * 1000),
       role,
+      verified: false,
     });
 
     await sendEmail(email, otp);
-    res.status(201).json({ message: "User registered. OTP sent to email." });
+
+
+    return res.redirect("/verify?email=" + encodeURIComponent(email));
   } catch (err) {
-    res.status(500).json({ message: "Registration failed", error: err.message });
+    return res.render("register", { error: "Registration failed: " + err.message, success: null });
   }
 };
+
 
 exports.verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (user.verified) return res.status(400).json({ message: "Already verified" });
-
-    if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
-
-    if (user.otpExpiresAt < new Date()) {
-      return res.status(400).json({ message: "OTP expired" });
-    }
+    if (!user) return res.render("verify", { error: "User not found", success: null, email });
+    if (user.verified) return res.render("verify", { error: "Already verified", success: null, email });
+    if (user.otp !== otp) return res.render("verify", { error: "Invalid OTP", success: null, email });
+    if (user.otpExpiresAt < new Date()) return res.render("verify", { error: "OTP expired", success: null, email });
 
     user.verified = true;
     user.otp = null;
     user.otpExpiresAt = null;
     await user.save();
 
-    res.json({ message: "Email verified successfully" });
+  
+    return res.redirect("/login?verified=1");
   } catch (err) {
-    res.status(500).json({ message: "OTP verification failed", error: err.message });
+    return res.render("verify", { error: "OTP verification failed: " + err.message, success: null, email: req.body.email });
   }
 };
 
@@ -70,8 +68,9 @@ exports.resendOtp = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
-    if (user.verified) return res.status(400).json({ message: "User already verified" });
+
+    if (!user) return res.render("verify", { error: "User not found", success: null, email });
+    if (user.verified) return res.render("verify", { error: "User already verified", success: null, email });
 
     const otp = generateOtp();
     user.otp = otp;
@@ -79,42 +78,45 @@ exports.resendOtp = async (req, res) => {
     await user.save();
 
     await sendEmail(email, otp);
-    res.json({ message: "New OTP sent to email" });
+    return res.render("verify", { success: "New OTP sent to email", error: null, email });
   } catch (err) {
-    res.status(500).json({ message: "Resend OTP failed", error: err.message });
+    return res.render("verify", { error: "Resend OTP failed: " + err.message, success: null, email: req.body.email });
   }
 };
+
 
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
-    if (!user.verified) return res.status(403).json({ message: "Email not verified" });
+    if (!user) return res.render("login", { error: "User not found", success: null, email });
+    if (!user.verified) return res.render("login", { error: "Email not verified", success: null, email });
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.status(401).json({ message: "Invalid password" });
+    if (!match) return res.render("login", { error: "Invalid password", success: null, email });
 
-    res.json({
-      message: "Login successful",
-      user: {
-        name: user.name,
-        email: user.email,
-        image: user.image,
-        role: user.role,
-      }
-    });
+  
+    req.session.user = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      role: user.role,
+    };
+
+    return res.redirect("/dashboard");
   } catch (err) {
-    res.status(500).json({ message: "Login failed", error: err.message });
+    return res.render("login", { error: "Login failed: " + err.message, success: null, email: req.body.email });
   }
 };
+
 
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user) return res.render("forgot", { error: "User not found", success: null, email });
 
     const otp = generateOtp();
     user.otp = otp;
@@ -122,23 +124,21 @@ exports.forgotPassword = async (req, res) => {
     await user.save();
 
     await sendEmail(email, otp);
-    res.json({ message: "OTP sent to your email for password reset" });
+    return res.render("reset", { success: "OTP sent to your email for password reset", error: null, email });
   } catch (err) {
-    res.status(500).json({ message: "Forgot password failed", error: err.message });
+    return res.render("reset", { error: "Forgot password failed: " + err.message, success: null, email: req.body.email });
   }
 };
+
 
 exports.resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
-    if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
-
-    if (user.otpExpiresAt < new Date()) {
-      return res.status(400).json({ message: "OTP expired" });
-    }
+    if (!user) return res.render("reset", { error: "User not found", success: null, email });
+    if (user.otp !== otp) return res.render("reset", { error: "Invalid OTP", success: null, email });
+    if (user.otpExpiresAt < new Date()) return res.render("reset", { error: "OTP expired", success: null, email });
 
     const hashed = await bcrypt.hash(newPassword, 10);
     user.password = hashed;
@@ -146,11 +146,12 @@ exports.resetPassword = async (req, res) => {
     user.otpExpiresAt = null;
     await user.save();
 
-    res.json({ message: "Password reset successful" });
+    return res.redirect("/login?reset=1");
   } catch (err) {
-    res.status(500).json({ message: "Password reset failed", error: err.message });
+    return res.render("reset", { error: "Password reset failed: " + err.message, success: null, email: req.body.email });
   }
 };
+
 
 exports.updateRegisterInfo = async (req, res) => {
   try {
@@ -186,12 +187,13 @@ exports.updateRegisterInfo = async (req, res) => {
         image: user.image,
         verified: user.verified,
         role: user.role,
-      }
+      },
     });
   } catch (err) {
     res.status(500).json({ message: "Update failed", error: err.message });
   }
 };
+
 
 exports.getAllRegisterProfiles = async (req, res) => {
   try {
@@ -201,21 +203,29 @@ exports.getAllRegisterProfiles = async (req, res) => {
       return res.status(404).json({ message: "No users found" });
     }
 
-  
-    const formattedUsers = users.map(user => ({
-            _id: user._id,
-
+    const formattedUsers = users.map((user) => ({
+      _id: user._id,
       name: user.name,
       email: user.email,
       image: user.image,
       verified: user.verified,
       role: user.role,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+      updatedAt: user.updatedAt,
     }));
 
     res.status(200).json(formattedUsers);
   } catch (err) {
     res.status(500).json({ message: "Failed to fetch users", error: err.message });
   }
+};
+exports.logout = (req, res) => {
+  req.session.destroy(err => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.status(500).send('Logout failed');
+    }
+    res.clearCookie('connect.sid'); 
+    res.redirect('/login');          
+  });
 };
