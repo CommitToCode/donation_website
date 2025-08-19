@@ -1,5 +1,7 @@
+
+require('dotenv').config(); // load .env first
+
 const express = require("express");
-const dotenv = require("dotenv");
 const path = require("path");
 const session=require("express-session")
 const cors = require("cors");
@@ -11,7 +13,7 @@ const campaignRoutes = require("./app/routes/campaignroutes");
 const categoryRoutes = require("./app/routes/categoryroutes");
 const reportRoutes = require("./app/routes/reportroutes");
 const donationRoutes = require("./app/routes/donationroutes");
-dotenv.config();
+
 connectDB();
 
 const app = express();

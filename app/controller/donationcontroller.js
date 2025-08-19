@@ -1,55 +1,73 @@
-// const Razorpay = require("razorpay");
+const Razorpay = require("razorpay");
 const sendEmail = require("../middleware/reportemailsetup");
+const Payment = require("../models/payment");
 
-// const razorpay = new Razorpay({
-//   key_id: process.env.RAZORPAY_KEY,
-//   key_secret: process.env.RAZORPAY_SECRET,
-// });
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
+
 
 exports.createDonationLink = async (req, res) => {
   try {
-    const { amount, name, email } = req.body;
+    const { amount, userId, userName, userEmail, campaignId, campaignTitle, method } = req.body;
 
+    
+    if (!amount || !userId || !userName || !userEmail || !campaignId || !campaignTitle || !method) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+
+    
     const paymentLink = await razorpay.paymentLink.create({
       amount: amount * 100, 
       currency: "INR",
-      customer: {
-        name,
-        email,
-      },
-      notify: {
-        sms: false,
-        email: true,
-      },
+      customer: { name: userName, email: userEmail },
+      notify: { sms: false, email: true },
       reminder_enable: true,
-      callback_url: "http://yourdomain.com/payment-success",
-      callback_method: "get",
+      // callback_url: "http://localhost:3000/api/payments/verify",
+      // callback_method: "get",
+    });
+
+    
+    const payment = await Payment.create({
+      userId,
+      userName,
+      userEmail,
+      campaignId,
+      campaignTitle,
+      amount,
+      method,
     });
 
     
     const htmlContent = `
       <h2>Donation Payment</h2>
-      <p>Hello ${name},</p>
+      <p>Hello ${userName},</p>
       <p>Please click the link below to complete your donation:</p>
-      <a href="${paymentLink.short_url}" 
-         style="background:#28a745;color:white;padding:10px 15px;text-decoration:none;">
-         Pay Now
-      </a>
+      <a href="${paymentLink.short_url}" style="background:#28a745;color:white;padding:10px 15px;text-decoration:none;">Pay Now</a>
     `;
 
-    await sendEmail(email, "Complete Your Donation", htmlContent);
+    await sendEmail(userEmail, "Complete Your Donation", htmlContent);
 
-    res.json({ success: true, paymentLink: paymentLink.short_url });
+    res.status(201).json({
+      success: true,
+      message: "Donation link created and email sent successfully",
+      paymentLink: paymentLink.short_url,
+      data: payment,
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("Donation Link Error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
+
 exports.listPayments = async (req, res) => {
   try {
     const payments = await Payment.find().sort({ createdAt: -1 });
-    res.render("payments", { payments });
+    res.json({ success: true, count: payments.length, data: payments });
   } catch (err) {
-    console.error(err);
-    res.status(500).send("Server Error");
+    console.error("List Payments Error:", err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
