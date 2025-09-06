@@ -1,5 +1,7 @@
 const Campaign = require("../models/campaignmodel");
+const Category = require("../models/categorymodel"); 
 
+const Payment = require("../models/payment"); 
 
 exports.createCampaign = async (req, res) => {
   try {
@@ -25,6 +27,8 @@ exports.createCampaign = async (req, res) => {
       creatorId,
       image,
       status,
+            raisedAmount: 0, 
+
     });
 
     await newCampaign.save();
@@ -35,28 +39,84 @@ exports.createCampaign = async (req, res) => {
   }
 };
 
+// exports.getAllCampaigns = async (req, res) => {
+//   try {
+//     const filter = {};
+//     if (req.query.status) filter.status = req.query.status;
+//     if (req.query.category) filter.category = req.query.category;
+
+//     const campaigns = await Campaign.find(filter).populate("creatorId", "name email");
+//     res.json({ campaigns });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+
 exports.getAllCampaigns = async (req, res) => {
   try {
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
     if (req.query.category) filter.category = req.query.category;
 
-    const campaigns = await Campaign.find(filter).populate("creatorId", "name email");
-    res.json({ campaigns });
+    
+    const campaigns = await Campaign.find(filter)
+      .populate("category", "name")
+      .lean();
+
+  
+    for (let c of campaigns) {
+      const payments = await Payment.find({
+        campaignId: mongoose.Types.ObjectId(c._id),
+        status: "success" 
+      });
+      const totalRaised = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      c.raisedAmount = totalRaised;
+      
+
+      await Campaign.findByIdAndUpdate(c._id, { raisedAmount: totalRaised });
+    }
+
+    const categories = await Category.find().lean();
+    res.render("banner/campaigns", { title: "Campaigns", campaigns, categories });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(error);
+    res.render("banner/campaigns", { title: "Campaigns", campaigns: [], categories: [] });
   }
 };
 
+
+// exports.getCampaignById = async (req, res) => {
+//   try {
+//     const campaign = await Campaign.findById(req.params.id).populate("creatorId", "name email");
+//     if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+//     res.json({ campaign });
+//   } catch (error) {
+//     res.status(500).json({ message: error.message });
+//   }
+// };
+
+
+
+
+
 exports.getCampaignById = async (req, res) => {
   try {
-    const campaign = await Campaign.findById(req.params.id).populate("creatorId", "name email");
+    const campaign = await Campaign.findById(req.params.id)
+      .populate("creatorId", "name email")
+      .lean();
+
     if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+
+    const payments = await Payment.find({ campaignId: campaign._id, status: "success" });
+    campaign.raisedAmount = payments.reduce((sum, p) => sum + p.amount, 0);
+
     res.json({ campaign });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 
 exports.updateCampaign = async (req, res) => {

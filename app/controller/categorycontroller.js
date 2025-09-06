@@ -1,7 +1,7 @@
 const Category = require("../models/categorymodel");
 const slugify = require("slugify");
 
-// Create new category
+
 exports.createCategory = async (req, res) => {
   try {
     const { name, description } = req.body;
@@ -23,7 +23,6 @@ exports.createCategory = async (req, res) => {
   }
 };
 
-// Get all categories
 exports.getAllCategories = async (req, res) => {
   try {
     const categories = await Category.find();

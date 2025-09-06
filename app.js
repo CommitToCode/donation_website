@@ -14,7 +14,7 @@ const donationRoutes = require("./app/routes/donationroutes");
 
 
 const { morganMiddleware } = require("./app/middleware/morgan-Middleware");
-const { limiter } = require("./app/middleware/rateLimitMiddleware");
+// const { limiter } = require("./app/middleware/rateLimitMiddleware");
 const { sessionMiddleware } = require("./app/middleware/sessionMiddleware");
 const { errorMiddleware } = require("./app/middleware/errorMiddleware");
 
@@ -26,7 +26,7 @@ app.use(cors({
   credentials: true, 
 }));
 app.use(morganMiddleware);
-app.use(limiter);
+// app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionMiddleware);
@@ -36,17 +36,21 @@ app.set("views", path.join(__dirname, "views"));
 
 const methodOverride = require('method-override');
 app.use(methodOverride('_method'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.use("/uploads", express.static("uploads"));
+// app.use("/uploads", express.static("uploads"));
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-// const authViewRoutes = require("./app/routes/authviewroutes");
-// app.use("/", authViewRoutes);
-// const mainRoutes = require("./app/routes/mainviewroutes");
-// app.use("/dashboard", mainRoutes);
-// const campaignviewRoutes = require("./app/routes/campaignviewroutes");
-// app.use("/campaigns", campaignviewRoutes);
+const authViewRoutes = require("./app/routes/authviewroutes");
+app.use("/", authViewRoutes);
+const mainRoutes = require("./app/routes/mainviewroutes");
+app.use("/dashboard", mainRoutes);
+const campaignviewRoutes = require("./app/routes/campaignviewroutes");
+app.use("/campaigns", campaignviewRoutes);
+// const paymentviewRoutes = require("./app/routes/paymentviewroutes");
+// app.use("/payment", paymentviewRoutes);
+
 
 // API routes
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(specs));
