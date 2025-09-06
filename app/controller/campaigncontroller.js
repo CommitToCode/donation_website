@@ -63,6 +63,7 @@ exports.getAllCampaigns = async (req, res) => {
     const campaigns = await Campaign.find(filter)
       .populate("category", "name")
       .lean();
+    res.json({ campaigns });
 
   
     for (let c of campaigns) {
@@ -86,15 +87,15 @@ exports.getAllCampaigns = async (req, res) => {
 };
 
 
-// exports.getCampaignById = async (req, res) => {
-//   try {
-//     const campaign = await Campaign.findById(req.params.id).populate("creatorId", "name email");
-//     if (!campaign) return res.status(404).json({ message: "Campaign not found" });
-//     res.json({ campaign });
-//   } catch (error) {
-//     res.status(500).json({ message: error.message });
-//   }
-// };
+exports.getCampaignById = async (req, res) => {
+  try {
+    const campaign = await Campaign.findById(req.params.id).populate("creatorId", "name email");
+    if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+    res.json({ campaign });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 
 
 
