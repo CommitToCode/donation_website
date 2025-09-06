@@ -3,7 +3,7 @@ const router = express.Router();
 
 
 router.get("/", (req, res) => {
-  res.render("register",{ error: null, success: null}); 
+  res.render("register",{ error: null, success: null,}); 
 });
 
 
